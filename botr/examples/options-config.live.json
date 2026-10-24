@@ -1,0 +1,45 @@
+{
+  "notes": [
+    "From the packet's trading-UI screenshot: symbols like OIL_0626_P100 (expiry Jun 26 2026), OIL strikes 60/100/140,",
+    "notional = quantity x price (multiplier 1), market-bot quotes at fair +/- 1.005 with 200 per level, levels 1.00 apart,",
+    "and put-call parity on the quotes gives rate 0. PLANE strikes and all position limits are NOT shown: placeholders.",
+    "years is the exchange calculator's fixed time to expiry: calibrate it with options-calibrate before trading.",
+    "round3_conversion is a TEST ASSUMPTION (analysts publish the expected price move S x IV x sqrt(T)): set it to the quantity the live game reveals."
+  ],
+  "years": 0.0793650794,
+  "rate": 0.0,
+  "half_spread": 1.005,
+  "level_step": 1.0,
+  "depth": 200,
+  "levels": 3,
+  "execution": "touch",
+  "round3_conversion": {"kind": "expected_move_price"},
+  "contracts": [
+    {"symbol": "OIL_0626_C60", "underlying": "OIL", "strike": 60, "kind": "call"},
+    {"symbol": "OIL_0626_C100", "underlying": "OIL", "strike": 100, "kind": "call"},
+    {"symbol": "OIL_0626_C140", "underlying": "OIL", "strike": 140, "kind": "call"},
+    {"symbol": "OIL_0626_P60", "underlying": "OIL", "strike": 60, "kind": "put"},
+    {"symbol": "OIL_0626_P100", "underlying": "OIL", "strike": 100, "kind": "put"},
+    {"symbol": "OIL_0626_P140", "underlying": "OIL", "strike": 140, "kind": "put"},
+    {"symbol": "PLANE_0626_C60", "underlying": "PLANE", "strike": 60, "kind": "call"},
+    {"symbol": "PLANE_0626_C100", "underlying": "PLANE", "strike": 100, "kind": "call"},
+    {"symbol": "PLANE_0626_C140", "underlying": "PLANE", "strike": 140, "kind": "call"},
+    {"symbol": "PLANE_0626_P60", "underlying": "PLANE", "strike": 60, "kind": "put"},
+    {"symbol": "PLANE_0626_P100", "underlying": "PLANE", "strike": 100, "kind": "put"},
+    {"symbol": "PLANE_0626_P140", "underlying": "PLANE", "strike": 140, "kind": "put"}
+  ],
+  "limits": {
+    "OIL_0626_C60": 200, "OIL_0626_C100": 200, "OIL_0626_C140": 200,
+    "OIL_0626_P60": 200, "OIL_0626_P100": 200, "OIL_0626_P140": 200,
+    "PLANE_0626_C60": 200, "PLANE_0626_C100": 200, "PLANE_0626_C140": 200,
+    "PLANE_0626_P60": 200, "PLANE_0626_P100": 200, "PLANE_0626_P140": 200
+  },
+  "max_order": 50,
+  "max_actions": 6,
+  "max_gross": 1000000,
+  "min_edge": 0.15,
+  "greek_limits": {
+    "OIL": {"delta": 400, "gamma": 40, "vega": 400},
+    "PLANE": {"delta": 400, "gamma": 40, "vega": 400}
+  }
+}

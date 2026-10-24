@@ -1,0 +1,31 @@
+{
+  "NOTE": "Confirmed on the test exchange on 2026-10-17: exchange-check and --place-test pass with this file as is. The bot also tries the usual alternatives for the clock fields and the placed order id; rerun exchange-check if the competition uses another exchange",
+  "clock_path": "/api/v1/competitions/time",
+  "time": {
+    "competition_id": "competition_id",
+    "market_time": "fictional_time",
+    "state": "state"
+  },
+  "positions": {
+    "items": "positions",
+    "symbol": "symbol",
+    "quantity": "quantity"
+  },
+  "orders": {
+    "items": "orders",
+    "id": "order_id",
+    "symbol": "symbol",
+    "side": "side",
+    "quantity": "quantity",
+    "filled": "filled_quantity",
+    "price": "price"
+  },
+  "book": {
+    "bids": "bids",
+    "asks": "asks",
+    "price": "price",
+    "quantity": "quantity"
+  },
+  "book_depth": 10,
+  "placed_order_id": "order_id"
+}
