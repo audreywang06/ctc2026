@@ -1,0 +1,341 @@
+Rust programs (botr): team instructions
+=======================================
+
+One program, cornell-bots-rs.exe, in the botr folder on the team drive. Nothing to install
+(no Python, no Rust). It runs the equities bots, prices derivatives and gives Mario fair values.
+
+Keys: never put a bot key in a file, a chat or a command line, and keep any file that holds
+keys outside the shared Cornell Trading 2026 folder (sharing the folder shares every file in
+it). Only the bot laptop and the backup PC need keys. The derivatives and Mario people need
+only the folder.
+
+
+1. Set up the folder (every PC)
+-------------------------------
+Copy the botr folder from the team drive to C:\botr. Open PowerShell and go there. Every
+command below runs from this folder and starts with .\ (PowerShell runs a program in the
+current folder only with .\ in front):
+
+pushd C:\botr
+
+To update it later (a new build on the team drive): stop every bot, then copy the new botr's
+cornell-bots-rs.exe and its models folder over the ones in C:\botr (both from the same copy).
+Keep C:\botr\recordings (the bots' state, the plays, the analysts' records) and the files you
+edited in C:\botr\examples (the calibrated options config, mario-live.json).
+
+Before trading, check that the PC has the drive's build: these two must print the same (use
+your Drive letter). The drive's build is from 2026-10-22 (hash starting 5E53665F). It has the two
+live changes of 2026-10-21 (section 4), the 35/100 defaults, and an override adjust that unblocks
+by itself (section 5). It needs models\testnet-book.json, which comes with its models folder, so
+copy the models folder too. An exe dated before 2026-10-22 is older: it defaults to 10/40, and its
+adjust needs a separate unblock. Update it as above.
+(Get-FileHash C:\botr\cornell-bots-rs.exe).Hash
+(Get-FileHash "G:\My Drive\Cornell Trading 2026\botr\cornell-bots-rs.exe").Hash
+
+
+2. Save the keys (bot laptop and backup PC only)
+------------------------------------------------
+The captain creates the keys on the exchange (Team > API keys) and hands them over in person.
+Save each one once per PC. Paste the key and press Enter; each character shows as *.
+
+.\cornell-bots-rs.exe key set --key-name bot-1
+.\cornell-bots-rs.exe key set --key-name bot-2
+.\cornell-bots-rs.exe key set --key-name bot-3
+
+Check that a key is saved (it never prints the key):
+.\cornell-bots-rs.exe key status --key-name bot-1
+
+
+3. Check the connection (each bot PC, before trading)
+-----------------------------------------------------
+.\cornell-bots-rs.exe exchange-check --adapter examples\exchange-adapter.example.json
+
+It must end with "ok": true. Then one test order (1 share far below the bid, then cancelled):
+.\cornell-bots-rs.exe exchange-check --adapter examples\exchange-adapter.example.json --place-test
+
+
+4. Equities bots (bot laptop)
+-----------------------------
+Start the bots BEFORE the season begins. A bot started mid-season holds off on every symbol
+until the announcement desk has reviewed the headlines it missed.
+
+Read-only first: it prints the orders it would send and sends nothing.
+.\cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json
+
+Competition: stop the read-only bot (Ctrl+C), then start 3 bots, one key each, each in its
+own PowerShell window (pushd C:\botr in each). Three keys make about $1.2k a season more than
+one key in the backtest (tested 2026-10-20 with the three run together):
+.\cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --key-name bot-1 --symbols PORT,HAVEN,REIN,GEN --actions-per-minute 55 --execute
+.\cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --key-name bot-2 --symbols ARCH,ISLE,AQUA,MAT --actions-per-minute 55 --execute
+.\cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --key-name bot-3 --symbols REBLD,GRID,FERRY,RECON --actions-per-minute 55 --execute
+
+Only one key? Stop the read-only bot (Ctrl+C), then run one bot on all symbols. It carries on
+from the read-only bot's state (a second bot on one state is refused: "another bot runs with
+..."):
+.\cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --execute
+
+Edge thresholds (the captain's decision, 2026-10-21): the bots trade at 35/100 bps. A build from
+2026-10-22 on has them as its defaults; an older exe (a fallback) defaults to 10/40 and trades
+35/100 only from C:\botr\recordings\overrides.json ("strategy": {"min_edge_bps": 35,
+"full_edge_bps": 100}), so keep that entry there either way. override clear keeps it, but the move of section 8
+takes the file along, so put it back before the first start of a day, on every PC that runs
+bots (the backup too). With no overrides.json there yet, this writes it (an existing file is
+left alone; one that already holds plays gets the "strategy" entry added by hand):
+New-Item -ItemType Directory -Force C:\botr\recordings | Out-Null; if (-not (Test-Path C:\botr\recordings\overrides.json)) { [IO.File]::WriteAllText("C:\botr\recordings\overrides.json", '{"strategy": {"min_edge_bps": 35, "full_edge_bps": 100}}') }
+.\cornell-bots-rs.exe override show
+then lists it (bots_refuse_it there means a typo); each bot logs overrides_loaded with it
+when it starts (its first line shows the defaults: 35/100 from the 2026-10-22 build, 10/40 before).
+
+Two changes of 2026-10-21 (builds from 2026-10-22 on): right after the bots' fast orders on news,
+the next cycle only converts ETFs (its order waits); and the bot that trades an ETF prices it off
+its stocks with the team's own trading taken out of their quotes (read from
+models\testnet-book.json: the bot does not start without it unless given --no-unskew). Held out
+the two add about $0.3k a season with three keys. While the bots run, "strategy":
+{"follow_up_orders": true} in overrides.json brings back the order after the fast path, and
+"unskew": false switches the second off. Before falling back to an older exe, take those two out
+of overrides.json: an older exe refuses the whole file for a name it does not know, and then
+ignores every play, unblock and threshold in it.
+
+Never:
+- run two bots without --symbols at the same time (they would trade the same symbols);
+- run a Rust bot and a Python bot with --execute on the same symbols;
+- trade the bots' symbols by hand (the bots count the team's positions as their own).
+
+Stop a bot: Ctrl+C, never by closing its window (a closed window cancels nothing). It cancels
+its own orders. If it lists left_open or uncertain_orders, check those orders on the exchange
+website. A restart cancels what its symbols still have open (adopted_order).
+Restart: run the same command again. Restart between storms, not during one: a bot that
+misses more than about 30 s of a storm sits out PORT, GRID, FERRY, GEN and both ETFs for the
+rest of the season. A restart takes the history of another bot in the same folder that saw
+more (another key's bot, or the read-only bot), and adds what the other bots there saw and it
+did not: with those still running, a restart mid-storm loses only its first seconds. It keeps
+its own orders and blocks (history_from, own_history; history_kept when its own went furthest).
+If the desk has reviewed every headline up to a restart, --resume-reviewed
+skips the check of what the bot missed while down (blocks from announcements stay).
+If a start says a file "cannot be read just now", another program (Google Drive, an
+antivirus) holds it for a moment: start again in a few seconds. Never delete it: it holds the
+season's history.
+
+What the log lines mean (each ends with "at": the PC's clock time it was written):
+waiting                   no trading for 30 s: why (market closed, feed resyncing, no feed
+                          connection, feed quiet, the organisers' switch), with the market time;
+                          normal between rounds, one line every 30 s
+history_from              it took the history of another bot in this folder (a fresh start, or
+                          a restart that missed part of the season: then also own_history);
+                          also_from lists the other bots whose observations it added
+history_kept              at a restart: its own history went furthest; also_from as above
+headline                  an announcement: tell the announcement desk (its round and time
+                          are what --from ROUND/HH:MM takes, see 5). "from": "snapshot" means
+                          it was first seen after a reconnect or a restart
+warning "an announcement  its symbols are not tickers (a full name, a typo): every company is
+  names ..."              blocked; read the headline, unblock the companies it does not touch
+blocked_on_join           it holds off until the desk reviews the headlines; its "hint" gives
+                          the override unblock to run (see 5): not ALL while an announcement
+                          still waits for its play. With "kept": a hold-off saved before this
+                          start (its last run's, or the history it took) is still in force
+blocked_after_gap         the same, after a feed gap
+still_blocked             at a restart with --resume-reviewed: announcement blocks from before
+                          stay; unblock them once priced
+feed_block_lifted         at a restart with --resume-reviewed: the hold-off is lifted
+unblock_waiting           a newer announcement came after an unblock: review it, unblock again
+seq_jump                  feed messages were missed: it holds off until the next snapshot
+                          (at most 30 s); many of these mean a bad connection
+overrides_error           overrides.json was refused (a typo, or a strategy setting outside its
+                          range: "beta": 7 for 0.7): the last good version stays
+shutdown_waiting          at Ctrl+C: cancels not through yet (the action budget, or the exchange
+                          refusing them for now), retried for 10 s; left_open lists the rest
+cancel_too_late           the order filled before its cancel arrived: normal when news lands
+adopted_order             an open order on its symbols it was not tracking (an earlier run's):
+                          it cancels it
+new_competition           the exchange started another competition (a new testnet season)
+bot_trading               the organisers' bot switch changed; bots trade only while it is full
+place_deferred            the key's actions for this minute are used up (normal when busy)
+place_failed              the exchange refused an order; the line says why
+key_refused               the key was revoked: make a new key, key set, restart
+replayed_research_season  testnet only: normal
+
+
+5. Announcement desk (on the bot laptop, in C:\botr)
+----------------------------------------------------
+The bots reread C:\botr\recordings\overrides.json every cycle (about every second). Type
+these on the bot laptop: a play typed on another PC changes that PC's file, and the bots
+never see it.
+
+See the plays and what their values mean:
+.\cornell-bots-rs.exe override list
+
+Apply one (example: GRID's damage now costs it half as much):
+.\cornell-bots-rs.exe override play damage-cost --symbol GRID --value 0.5
+
+The play unblocks the company it prices (and its ETF). Its output's still_blocked_by_caution
+lists what the bots still hold for that announcement (the insurers, the rebuilders, an ETF):
+unblock by name those the announcement does not affect, for example
+.\cornell-bots-rs.exe override unblock --symbols RECON,MAT,GEN,REIN,REBLD
+Never --symbols ALL while another announcement waits for its play: ALL lifts its block too.
+If the output lists "not_unblocked", a newer announcement still holds those symbols (whatever
+--from says; with --from 11:23 the newer ones are those after 11:23): play that one too, then
+unblock them. Compare the bot's next fair value with
+your own estimate before unblocking.
+
+Not sure of the value? Add --hold: the play goes in but unblocks nothing. When the bots' next
+cycle lines show sensible fair values, run the override unblock its "held_hint" gives (a
+symbol the bots were not holding back trades at the new value at once):
+.\cornell-bots-rs.exe override play damage-cost --symbol GRID --value 0.5 --hold
+While the bots hold off after a join or a feed gap, every override command (and show) says so
+under "feed_block": since when, what it holds, and the override unblock that lifts it alone
+(run it once the headlines are reviewed). An unblock, a play or an adjust given after it lifts
+it for its symbols.
+
+No play fits the headline? Shift the fair value instead, in one command: --add is $ per
+share, --mult a multiplier (one or both; the bots use fair x mult + add, at least 0, and
+ARCH and REBLD move with their adjusted stocks). The adjust unblocks what a play on that
+company would: the symbol and its ETF (which trades once the rest of its basket is free),
+with the same not_unblocked and still_blocked_by_caution as a play. It answers the latest
+headline naming the symbol; a rebuilder (RECON, MAT, GEN) without one of its own answers the
+latest island company's, so adjust GEN after "Grid hardens" unblocks GEN. An insurer or an
+ETF answers only its own. --hold puts the adjust in but unblocks nothing (run the unblock its
+"held_hint" gives once the fair value looks right). On a symbol nothing holds back it only
+writes the adjust. A new adjust on the same symbol replaces the last one (the output says
+what it replaced), so give both in one command:
+.\cornell-bots-rs.exe override adjust --symbol GRID --add -3.0
+.\cornell-bots-rs.exe override adjust --symbol GRID --add --mult 0.9
+Prefer a play when the headline fits one: a play scales with the storm (damage-cost 0.5
+halves what each further point of damage costs GRID; --add -3 stays $3), starts at the
+announcement (what came before keeps its old price; an adjust moves the whole value), and
+reprices the related companies (insured-share also moves HAVEN, REIN and MAT; an adjust only
+its symbol and its ETF). An adjust applies on top of any play on the same symbol.
+
+See what is in force:
+.\cornell-bots-rs.exe override show
+
+Undo the last change (any change, clear included; once):
+.\cornell-bots-rs.exe override undo
+
+Remove every play, block, unblock and adjust (always works, even on a broken file). The
+strategy settings (the guard, edge thresholds) stay when the bots accept them: the output
+says "kept" (edit the file to drop them) or "dropped" (with why the bots refuse them):
+.\cornell-bots-rs.exe override clear
+
+A value that looks like a typo is refused (a HavenBridge level under half or over twice the
+current one, 35 for 350; a guard other than 0 or 0.3-2, 75 for 0.75); add --force only if it
+is really meant. So is a flag the action does not take (adjust --value), a --file not named
+overrides.json (the bots never read another name), and a change that would leave a file the
+bots refuse as a whole (a guard over 5; a setting a hand edit broke: override show then says
+bots_refuse_it, override clear mends it). Two desks typing at once is fine: each change waits
+for the other.
+A play applies from the announcement on: what happened before keeps its old price. The
+command takes the announcement's time from the bots' state files, and its "applies" line says
+which one ("from now" if none). A rebuilder's play (recon-, mat-, gen-) takes its own latest
+headline, or without one the latest island company's.
+Wrong value or wrong start? First override undo, then play again with the right --value and,
+for a wrong start, --from 11:23 (the headline's market time, this round), --from 2/11:23
+(round 2), --from now, or --from season (the whole season, also what already happened).
+Never correct a play by typing it again: plays stack (0.5, then 0.7, gives 0.35). The command
+refuses the same play on the same company again, whatever the value, unless it answers
+another announcement (--force applies both on purpose).
+
+
+6. Derivatives (trade in the browser; these commands only price)
+----------------------------------------------------------------
+1 set the folder
+pushd C:\botr
+  PLANE's strikes and all the limits in examples\options-config.live.json are placeholders:
+  check them against the screen at the start and fix the file on every derivatives PC (a
+  misspelled key or greek cap, a limit for a contract the file does not have, or a contract
+  listed twice is refused; a symbol that names another strike than its entry gets a warning).
+
+2 calibrate once at the start (--write saves the result into the config; nothing is
+  written if the result looks wrong; it needs two prices: a call and a put of one strike, as
+  here, also give the rate)
+.\cornell-bots-rs.exe options-calibrate --config examples\options-config.live.json --spot OIL=100 --iv OIL=0.99 --price OIL_0626_C100=11.095 OIL_0626_P100=11.095 --write
+  At your first trade, compare the fill price with the bid and ask you saw. The packet says
+  options are "executed at the midpoint": if the fill was at the mid, set "execution": "mid"
+  in examples\options-config.live.json (the edges then count the half spread you do not pay).
+
+3 after each event, trade the top rows first (the spot edge is gone in about 60 s, the
+  vol edge in about 120 s)
+.\cornell-bots-rs.exe options-move --config examples\options-config.live.json --old OIL=100:0.99 PLANE=100:0.6 --new OIL=106:0.95,1.05,1.30 PLANE=97:0.6
+  A new spot over 1.5 times the old one (or under two thirds of it) is refused: a slipped
+  decimal (10.6 for 106) would trade every row the wrong way; a rise over 20% or a fall over
+  17% gets a warning. A new IV over 3 times the old one (or under a third of it) is refused
+  too (0.105 typed for 1.05). --force accepts either.
+
+Round 3 numbers instead of IVs. First, when the organisers say what the analysts' number is,
+set "round3_conversion" in examples\options-config.live.json on every derivatives PC (the
+file's expected_move_price is only a test guess; the kinds are in cornell_bots\README.md,
+Derivatives). Check one converted number against the IV calculator before trading.
+.\cornell-bots-rs.exe options-move --round 3 --config examples\options-config.live.json --old OIL=100:0.99 PLANE=100:0.6 --new OIL=106:28.37,31.36,38.82 PLANE=97:16.40
+
+Once the team holds options, add the positions, so the rows respect the limits left:
+.\cornell-bots-rs.exe options-move --config examples\options-config.live.json --old OIL=100:0.99 --new OIL=106:0.95 --pos OIL_0626_C100=200 OIL_0626_P60=-50
+
+The numbers are examples: use each event's spots and IVs. Check the "bots bid/ask" column
+against the screen before trading; a mismatch means a wrong --old or a wrong calibration.
+
+4 Rounds 2 and 3: about 2 minutes after each event (the bots have repriced), score the
+  analysts for your underlying: read the new IV in the IV calculator, then
+.\cornell-bots-rs.exe options-score --config examples\options-config.live.json --analyst-state recordings\analysts-OIL.json --event e4 --underlying OIL --analysts 0.95,1.05,1.30 --observed 1.05
+  and give options-move the same file, so the next estimate follows the analysts who were right:
+.\cornell-bots-rs.exe options-move --config examples\options-config.live.json --old OIL=100:0.99 --new OIL=106:0.95,1.05,1.30 --analyst-state recordings\analysts-OIL.json
+  Number the events e1-e10 in order (e4 is Round 2's first; E4 and 4 are the same). A score
+  cannot be taken back: typos (an IV in percent, an IV far outside the analysts' range, the
+  same numbers under another event name) are refused unless --force; other numbers under a
+  name already scored are refused too, with the next free name. In Round 3 add
+  --round 3 --spot NEWSPOT to options-score; --observed is always an IV. Each desk keeps its
+  own file (analysts-OIL.json, analysts-PLANE.json).
+
+
+7. Mario Markets (trade in the browser)
+---------------------------------------
+Before race 1: in examples\mario-live.json, replace the four names in "humans" with the four
+human-controlled racers.
+After each race: add the humans' overall places (1-12, among all 12 racers) to "results" (a
+list: [] before race 1), one entry per race:
+"results": [
+  {"Daisy": 2, "Peach": 7, "Birdo": 11, "Yoshi": 4},
+  {"Daisy": 1, "Peach": 9, "Birdo": 6, "Yoshi": 3}
+]
+Get fair values:
+.\cornell-bots-rs.exe mario --input examples\mario-live.json --table
+
+Before race 1, every race-winner and series-winner contract is worth about 25, and the
+series scores about 40 (TOP1), 31 (TOP2) and 71 (TOP2_TOTAL). Buy what is offered more than
+3 points below its fair value; sell what is bid more than 3 points above, up to the limits
+(race winner 10, series winner 20, scores 100). After each race, add the places and rerun. A
+warning flags a race with the same places as the one before (pasted twice?).
+
+
+8. After the last run
+---------------------
+With every bot stopped, move the bots' files (C:\botr\recordings: state, logs, plays) to the
+team drive with the checked move, on a PC that has botp in C:\botp (use your Drive letter):
+C:\botp\python\python.exe "G:\My Drive\Cornell Trading 2026\cornell_bots\tools\archive_run.py" C:\botr\recordings
+It moves everything into a new runs\<date-time> folder on the drive, checks every copy and
+leaves files a program still writes. On the derivatives PCs, do the same for their
+C:\botr\recordings (the analysts' records).
+On a PC that isn't yours, delete the keys:
+.\cornell-bots-rs.exe key forget --key-name bot-1
+.\cornell-bots-rs.exe key forget --key-name bot-2
+.\cornell-bots-rs.exe key forget --key-name bot-3
+
+
+Backup PC
+---------
+Keep the read-only bot of section 4 running in C:\botr on the backup from the start of the
+season (keys saved there too). If the bot laptop fails: stop the backup's read-only bot
+(Ctrl+C), then start the three --execute commands of section 4 on the backup. They take the read-only bot's history
+(history_from) and hold off only if something could have been missed since. If they hold off,
+the desk checks the headlines and runs the unblock the hint gives, on the backup. Copy the
+plays from the bot laptop's C:\botr\recordings\overrides.json into the backup's, then unblock
+again on the backup (an unblock carries the clock of the PC that gave it).
+
+
+If the Rust program misbehaves
+------------------------------
+botp holds the Python version with the same commands. Stop the Rust bots (Ctrl+C), copy botp
+to C:\botp, pushd C:\botp, and type python\python.exe -m cornell_bots where these say
+.\cornell-bots-rs.exe. For the bots, add --state-file C:\botr\recordings\hurricane-state.json:
+they then carry on from the Rust bots' state and read C:\botr\recordings\overrides.json, so the
+desk keeps typing its override commands in C:\botr. For example:
+python\python.exe -m cornell_bots live --adapter examples\exchange-adapter.example.json --state-file C:\botr\recordings\hurricane-state.json --key-name bot-1 --symbols PORT,HAVEN,REIN,GEN --actions-per-minute 55 --execute
+Keys saved with either one work for both.

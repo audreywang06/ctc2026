@@ -1,0 +1,75 @@
+API
+_c5YHpCywf4b72X4dAmw-QSeSMUuEWrwevM-dJ-c95Q
+Xp3VXeHLHf8G-JkfcCdSkbaSZ7jO1_QpB3f5Wo27l-k
+Jwb4govSFfx_9a3KiJy9Zp8vMjnaHQCLu2N9KDCcR1w
+
+
+Rust (install keys and run)
+pushd C:\botr
+cornell-bots-rs.exe key set --key-name bot-1
+cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --execute
+cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --key-name bot-2 --execute
+cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --key-name bot-3 --execute
+
+3 bots
+cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --key-name bot-1 --symbols PORT,HAVEN,REIN,GEN --actions-per-minute 55 --execute
+cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --key-name bot-2 --symbols ARCH,ISLE,AQUA,MAT --actions-per-minute 55 --execute
+cornell-bots-rs.exe live --adapter examples\exchange-adapter.example.json --key-name bot-3 --symbols REBLD,GRID,FERRY,RECON --actions-per-minute 55 --execute
+
+and 1 manual override
+cornell-bots-rs.exe override clear
+cornell-bots-rs.exe override unblock --symbols ALL
+cornell-bots-rs.exe override adjust --symbol X --add -3.0 (or --mult 0.9)
+
+
+Python (install keys and run)
+pushd C:\botp
+python\python.exe -m cornell_bots key set --key-name bot-1
+python\python.exe -m cornell_bots live --adapter examples\exchange-adapter.example.json --execute
+python\python.exe -m cornell_bots live --adapter examples\exchange-adapter.example.json --key-name bot-2 --execute
+python\python.exe -m cornell_bots live --adapter examples\exchange-adapter.example.json --key-name bot-3 --execute
+
+
+delete keys
+cornell-bots-rs.exe key status --key-name bot-1
+cornell-bots-rs.exe key forget --key-name bot-1
+python\python.exe -m cornell_bots key status --key-name bot-1
+python\python.exe -m cornell_bots key forget --key-name bot-1
+
+
+
+
+Derivatives
+1 set the folder
+pushd C:\botr
+
+2 calibrate
+cornell-bots-rs.exe options-calibrate --config examples\options-config.live.json --spot OIL=100 --iv OIL=0.99 --price OIL_0626_C100=11.095 OIL_0626_P100=11.095
+notepad examples\options-config.live.json
+"years": 0.079429,
+"rate": 0.0,
+
+3 trade
+cornell-bots-rs.exe options-move --config examples\options-config.live.json --old OIL=100:0.99 PLANE=100:0.6 --new OIL=106:0.95,1.05,1.30 PLANE=97:0.6
+cornell-bots-rs.exe options-move --round 3 --config examples\options-config.live.json --old OIL=100:0.99 PLANE=100:0.6 --new OIL=106:28.37,31.36,38.82 PLANE=97:16.40
+
+
+
+
+Mario Markets
+Before race 1: in examples\mario-live.json, replace the four names in "humans" with the four human-controlled racers.
+After each race: add the humans’ overall places (1–12) to "results", one entry per race:
+"results": [
+  {"Daisy": 2, "Peach": 7, "Birdo": 11, "Yoshi": 4},
+  {"Daisy": 1, "Peach": 9, "Birdo": 6, "Yoshi": 3}
+]
+Get fair values:
+cornell-bots-rs.exe mario --input examples\mario-live.json --table
+
+How to use it before race 1: these are fair prices when nothing is known yet. If a race-winner contract is offered at 18, it’s cheap by 7 points: buy. If someone bids 32, sell. For the scores, compare the book with 39.7, 30.8 and 70.5. Anything within 3 points (min_edge) isn’t worth trading.
+
+After each race, add the four places to "results" and rerun. The numbers then move apart as skill shows, as in the two-race example.
+
+
+
+
